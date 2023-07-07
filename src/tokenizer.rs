@@ -7,7 +7,9 @@ pub use self::Token::{
     Numb,
     Delim,
     Operator,
-    EOF
+    EOF,
+    StartBlock,
+    EndBlock,
 };
 
 #[derive(Debug)]
@@ -18,7 +20,10 @@ pub enum Token {
     Delim(usize),
     LParen(usize),
     RParen(usize),
-    EOF(usize)
+    EOF(usize),
+    String(String, usize),
+    StartBlock(usize),
+    EndBlock(usize)
 }
 
 impl PartialEq for Token {
@@ -43,10 +48,13 @@ pub fn tokenize(input: &str) -> Vec<Token>{
     let r = regex!(concat!(
         r"(?P<ident>\p{Alphabetic}\w*)|",
         r"(?P<num>\d+\.?\d*)|",
+        r#""(?P<str>.*)"|"#,
         r"(?P<delim>;)|",
         r"(?P<lpar>\()|",
         r"(?P<rpar>\))|",
-        r"(?P<op>[+=%\-*<>!]+)"
+        r"(?P<sbl>\{)|",
+        r"(?P<ebl>\})|",
+        r"(?P<op>[+=%\-*<>!/]+)"
     ));
     let mut out: Vec<Token> = vec![];
     for cap in r.captures_iter(input){
@@ -71,6 +79,12 @@ pub fn tokenize(input: &str) -> Vec<Token>{
             Token::LParen(cap.name("lpar").unwrap().start())
         } else if cap.name("rpar").is_some(){
             Token::RParen(cap.name("rpar").unwrap().start())
+        } else if cap.name("sbl").is_some(){
+            Token::StartBlock(cap.name("sbl").unwrap().start())
+        } else if cap.name("ebl").is_some(){
+            Token::EndBlock(cap.name("ebl").unwrap().start())
+        } else if cap.name("str").is_some(){
+            Token::String(cap.name("str").unwrap().as_str().to_string(), cap.name("str").unwrap().start())
         } else {
             panic!("Wtf")
         };
