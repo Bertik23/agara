@@ -1,8 +1,9 @@
 extern crate regex_macro;
 use regex_macro::regex;
-use std::mem;
+use std::iter::Peekable;
+use std::{char, mem};
 
-pub use self::Token::{Delim, EndBlock, Ident, Numb, Operator, StartBlock, EOF};
+use self::Token::{Delim, EndBlock, Ident, Numb, Operator, StartBlock, EOF};
 
 #[derive(Debug)]
 pub enum Token {
@@ -17,6 +18,22 @@ pub enum Token {
     StartBlock(usize),
     EndBlock(usize),
     Unknown,
+}
+
+#[derive(Debug)]
+enum State {
+    Start,
+    NumberWhole,
+    NumberDecimal,
+    Ident,
+}
+
+struct Tokenizer<'a> {
+    input: Peekable<std::str::Chars<'a>>,
+    state: State,
+    curent: String,
+    position: usize,
+    start_pos: usize,
 }
 
 impl PartialEq for Token {
@@ -37,58 +54,146 @@ impl PartialEq for Token {
     }
 }
 
-pub fn tokenize(input: &str) -> Vec<Token> {
-    let r = regex!(concat!(
-        r"(?P<ident>\p{Alphabetic}\w*)|",
-        r"(?P<num>\d+\.?\d*)|",
-        r#""(?P<str>.*)"|"#,
-        r"(?P<delim>;)|",
-        r"(?P<lpar>\()|",
-        r"(?P<rpar>\))|",
-        r"(?P<sbl>\{)|",
-        r"(?P<ebl>\})|",
-        r"(?P<op>[+=%\-*<>!/]+)",
-        r"(?P<else>.*)"
-    ));
-    let mut out: Vec<Token> = vec![];
-    for cap in r.captures_iter(input) {
-        let t: Token = if cap.name("ident").is_some() {
-            Token::Ident(
-                cap.name("ident").unwrap().as_str().to_string(),
-                cap.name("ident").unwrap().start(),
-            )
-        } else if cap.name("num").is_some() {
-            match cap.name("num").unwrap().as_str().parse() {
-                Ok(number) => Token::Numb(number, cap.name("num").unwrap().start()),
-                Err(_) => panic!("Lexer failed to parse number"),
+impl<'a> Tokenizer<'a> {
+    fn new(input: &str) -> Tokenizer {
+        Tokenizer {
+            input: input.chars().peekable(),
+            state: State::Start,
+            curent: String::new(),
+            position: 0,
+            start_pos: 0,
+        }
+    }
+    fn consume_char(&mut self) -> char {
+        self.position += 1;
+        self.input.next().expect("A char was expected.")
+    }
+    fn next_token(&mut self) -> Token {
+        while let Some(c) = self.input.peek() {
+            match self.state {
+                State::Start => match c {
+                    '0'..='9' => {
+                        self.state = State::NumberWhole;
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                        // self.curent.push(self.consume_char());
+                    }
+                    ws if ws.is_whitespace() => {
+                        self.consume_char();
+                        self.start_pos = self.position;
+                    }
+                    op if ['+', '-', '%', '/', '='].contains(op) => {
+                        let t = Token::Operator(op.to_string(), self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    '(' => {
+                        let t = Token::LParen(self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    ')' => {
+                        let t = Token::RParen(self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    '{' => {
+                        let t = Token::StartBlock(self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    '}' => {
+                        let t = Token::EndBlock(self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    c if c.is_alphabetic() || c == &'_' => {
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                        self.state = State::Ident
+                    }
+                    _ => todo!(),
+                },
+                State::NumberWhole => match c {
+                    '0'..='9' => {
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                    '.' => {
+                        self.state = State::NumberDecimal;
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                    _ => {
+                        self.state = State::Start;
+                        let t = Token::Numb(
+                            self.curent.parse().expect(
+                                format!(
+                                    "'{}' is not a valid number.",
+                                    self.curent
+                                )
+                                .as_str(),
+                            ),
+                            self.start_pos,
+                        );
+                        self.start_pos = self.position;
+                        self.curent.clear();
+                        return t;
+                    }
+                },
+                State::NumberDecimal => match c {
+                    '0'..='9' => self.curent.push(self.input.next().unwrap()),
+                    _ => {
+                        self.state = State::Start;
+                        let t = Token::Numb(
+                            self.curent.parse().unwrap(),
+                            self.start_pos,
+                        );
+                        self.start_pos = self.position;
+                        self.curent.clear();
+                        return t;
+                    }
+                },
+                State::Ident => match c {
+                    c if c.is_alphabetic()
+                        || c.is_ascii_digit()
+                        || c == &'_' =>
+                    {
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                    _ => {
+                        let t =
+                            Token::Ident(self.curent.clone(), self.start_pos);
+                        self.curent.clear();
+                        self.state = State::Start;
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                },
             }
-        } else if cap.name("delim").is_some() {
-            Token::Delim(cap.name("delim").unwrap().start())
-        } else if cap.name("op").is_some() {
-            Token::Operator(
-                cap.name("op").unwrap().as_str().to_string(),
-                cap.name("op").unwrap().start(),
-            )
-        } else if cap.name("lpar").is_some() {
-            Token::LParen(cap.name("lpar").unwrap().start())
-        } else if cap.name("rpar").is_some() {
-            Token::RParen(cap.name("rpar").unwrap().start())
-        } else if cap.name("sbl").is_some() {
-            Token::StartBlock(cap.name("sbl").unwrap().start())
-        } else if cap.name("ebl").is_some() {
-            Token::EndBlock(cap.name("ebl").unwrap().start())
-        } else if cap.name("str").is_some() {
-            Token::String(
-                cap.name("str").unwrap().as_str().to_string(),
-                cap.name("str").unwrap().start(),
-            )
-        } else if cap.name("else").is_some() {
-            Token::Unknown
-        } else {
-            panic!("Wtf")
-        };
+        }
+        Token::EOF(self.position)
+    }
+}
+
+pub fn tokenize(input: &str) -> Vec<Token> {
+    let mut out = Vec::new();
+    let mut tokenizer = Tokenizer::new(input);
+    let mut eof = false;
+    loop {
+        let t = tokenizer.next_token();
+        if matches!(t, Token::EOF(_)) {
+            if eof {
+                return out;
+            }
+            eof = true;
+        }
         out.push(t);
     }
-    out.push(EOF(input.len()));
-    out
 }
