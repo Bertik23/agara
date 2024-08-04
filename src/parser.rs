@@ -39,7 +39,11 @@ fn parse_number(tokens: &mut Vec<Token>) -> ASTTree {
     })
 }
 
-fn parse_bin_op_rhs(tokens: &mut Vec<Token>, lhs_: ASTTree, min_token_precedense: i32) -> ASTTree {
+fn parse_bin_op_rhs(
+    tokens: &mut Vec<Token>,
+    lhs_: ASTTree,
+    min_token_precedense: i32,
+) -> ASTTree {
     let mut lhs = lhs_.clone();
     loop {
         let tok_precedense;
@@ -113,8 +117,9 @@ fn parse_init(tokens: &mut Vec<Token>) -> ASTTree {
 
 fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
     let mut params: Vec<ASTTree> = vec![];
-    let Token::Ident(name, _) = tokens.pop().unwrap()
-    else {panic!("Expected function name")};
+    let Token::Ident(name, _) = tokens.pop().unwrap() else {
+        panic!("Expected function name")
+    };
     if let Token::LParen(_) = tokens.pop().unwrap() {
     } else {
         panic!("Expected `(`")
@@ -234,4 +239,3 @@ pub fn parse(tokens: &mut Vec<Token>) -> Vec<ASTTree> {
         }
     }
 }
-
