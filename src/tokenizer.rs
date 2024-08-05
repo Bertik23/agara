@@ -26,6 +26,8 @@ enum State {
     NumberWhole,
     NumberDecimal,
     Ident,
+    String,
+    StringEscape,
 }
 
 struct Tokenizer<'a> {
@@ -117,6 +119,17 @@ impl<'a> Tokenizer<'a> {
                         self.curent.push(c);
                         self.state = State::Ident
                     }
+                    ';' => {
+                        let t = Token::Delim(self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    '"' => {
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                        self.state = State::String;
+                    }
                     _ => todo!(),
                 },
                 State::NumberWhole => match c {
@@ -132,13 +145,12 @@ impl<'a> Tokenizer<'a> {
                     _ => {
                         self.state = State::Start;
                         let t = Token::Numb(
-                            self.curent.parse().expect(
-                                format!(
+                            self.curent.parse().unwrap_or_else(|_| {
+                                panic!(
                                     "'{}' is not a valid number.",
                                     self.curent
                                 )
-                                .as_str(),
-                            ),
+                            }),
                             self.start_pos,
                         );
                         self.start_pos = self.position;
@@ -175,6 +187,57 @@ impl<'a> Tokenizer<'a> {
                         self.start_pos = self.position;
                         return t;
                     }
+                },
+                State::String => match c {
+                    '\\' => {
+                        self.state = State::StringEscape;
+                        self.consume_char();
+                    }
+                    '"' => {
+                        self.state = State::Start;
+                        let t =
+                            Token::String(self.curent.clone(), self.start_pos);
+                        self.consume_char();
+                        self.start_pos = self.position;
+                        return t;
+                    }
+                    _ => {
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                },
+                State::StringEscape => match c {
+                    '\\' => {
+                        self.state = State::String;
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                    '"' => {
+                        self.state = State::String;
+                        let c = self.consume_char();
+                        self.curent.push(c);
+                    }
+                    'n' => {
+                        self.state = State::String;
+                        self.consume_char();
+                        self.curent.push('\n');
+                    }
+                    't' => {
+                        self.state = State::String;
+                        self.consume_char();
+                        self.curent.push('\t');
+                    }
+                    'v' => {
+                        self.state = State::String;
+                        self.consume_char();
+                        self.curent.push('\x0B');
+                    }
+                    'r' => {
+                        self.state = State::String;
+                        self.consume_char();
+                        self.curent.push('\r');
+                    }
+                    _ => todo!("Unknown escape pattern."),
                 },
             }
         }
