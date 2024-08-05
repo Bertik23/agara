@@ -1,9 +1,9 @@
 extern crate regex_macro;
-use regex_macro::regex;
+
 use std::iter::Peekable;
 use std::{char, mem};
 
-use self::Token::{Delim, EndBlock, Ident, Numb, Operator, StartBlock, EOF};
+use self::Token::{Ident, Numb, Operator};
 
 #[derive(Debug)]
 pub enum Token {

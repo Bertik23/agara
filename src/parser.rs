@@ -5,7 +5,7 @@ extern crate lazy_static;
 use lazy_static::lazy_static;
 
 use crate::tokenizer::Token;
-use std::{collections::HashMap, mem};
+use std::collections::HashMap;
 
 lazy_static! {
     static ref BINOP_PRECEDENSE: HashMap<&'static str, i32> = HashMap::from([
@@ -91,7 +91,7 @@ fn parse_paren(tokens: &mut Vec<Token>) -> ASTTree {
         panic!("Expected ')'");
     }
 
-    return lhs;
+    lhs
 }
 
 fn parse_unary(tokens: &mut Vec<Token>) -> ASTTree {
@@ -100,19 +100,16 @@ fn parse_unary(tokens: &mut Vec<Token>) -> ASTTree {
     } else {
         panic!("Imposible")
     };
-    return ASTTree::UnaryOp(op, Box::new(parse_primary(tokens)));
+    ASTTree::UnaryOp(op, Box::new(parse_primary(tokens)))
 }
 
 fn parse_init(tokens: &mut Vec<Token>) -> ASTTree {
-    let lhs;
-    match tokens.pop().unwrap() {
-        Token::Ident(id, _) => {
-            lhs = ASTTree::Variable(id);
-        }
+    let lhs = match tokens.pop().unwrap() {
+        Token::Ident(id, _) => ASTTree::Variable(id),
         _ => panic!("Expected identifier."),
-    }
+    };
 
-    return parse_bin_op_rhs(tokens, lhs, 0);
+    parse_bin_op_rhs(tokens, lhs, 0)
 }
 
 fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
@@ -135,34 +132,30 @@ fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
     dbg!(&tokens);
     let next = parse(tokens);
     dbg!(&next);
-    return ASTTree::Function(name, params, next);
+    ASTTree::Function(name, params, next)
 }
 
 fn parse_call(tokens: &mut Vec<Token>) -> Vec<ASTTree> {
     let mut params = vec![];
     tokens.pop();
-    while if let Token::RParen(_) = tokens.last().unwrap() {
-        false
-    } else {
-        true
-    } {
+    while matches!(tokens.last().unwrap(), Token::RParen(_)) {
         params.push(parse_primary(tokens));
     }
     tokens.pop();
-    return params;
+    params
 }
 
 fn parse_ident(tokens: &mut Vec<Token>) -> ASTTree {
     match tokens.pop().unwrap() {
         Token::Ident(id, _) => {
             match id.as_str() {
-                "let" => return parse_init(tokens),
-                "fun" => return parse_function_def(tokens),
+                "let" => parse_init(tokens),
+                "fun" => parse_function_def(tokens),
                 _ => {
                     if let Token::LParen(_) = tokens.last().unwrap() {
                         return ASTTree::Call(id, parse_call(tokens));
                     }
-                    return ASTTree::Variable(id);
+                    ASTTree::Variable(id)
                 } // _ => panic!("Unknown indentifier `{}`", id)
             }
         }
@@ -172,7 +165,7 @@ fn parse_ident(tokens: &mut Vec<Token>) -> ASTTree {
 
 fn parse_string(tokens: &mut Vec<Token>) -> ASTTree {
     match tokens.pop().unwrap() {
-        Token::String(string, _) => return ASTTree::String(string),
+        Token::String(string, _) => ASTTree::String(string),
         _ => panic!("Cant happen."),
     }
 }
@@ -210,13 +203,13 @@ fn parse_primary(tokens: &mut Vec<Token>) -> ASTTree {
             )
         }
     }
-    return lhs;
+    lhs
 }
 
 fn parse_expression(tokens: &mut Vec<Token>) -> ASTTree {
     let lhs = parse_primary(tokens);
 
-    return parse_bin_op_rhs(tokens, lhs, 0);
+    parse_bin_op_rhs(tokens, lhs, 0)
 }
 
 pub fn parse(tokens: &mut Vec<Token>) -> Vec<ASTTree> {

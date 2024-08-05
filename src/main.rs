@@ -18,9 +18,8 @@ fn main() {
     };
     // dbg!(&args);
     if args.len() > 1 {
-        let mut source =
-            fs::read_to_string(&args[1]).expect("Coudn't open file.");
-        let mut tokens = tokenizer::tokenize(&mut source);
+        let source = fs::read_to_string(&args[1]).expect("Coudn't open file.");
+        let mut tokens = tokenizer::tokenize(&source);
         // dbg!(&tokens);
         let ast = parser::parse(&mut tokens);
         interpret::run(ast, &mut context);
@@ -30,7 +29,7 @@ fn main() {
             print!(">>> ");
             let _ = io::stdout().flush();
             let _ = io::stdin().read_line(&mut input);
-            let mut tokens = tokenizer::tokenize(&mut input);
+            let mut tokens = tokenizer::tokenize(&input);
             dbg!(&tokens);
             // dbg!(&context);
             tokens.reverse();

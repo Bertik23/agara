@@ -54,7 +54,7 @@ impl Object {
 
     fn neg(&self) -> Object {
         match self {
-            Object::Float(x) => return Object::Float(-x),
+            Object::Float(x) => Object::Float(-x),
             _ => todo!("Operation NEG not implemented for {:?}", self),
         }
     }
@@ -147,31 +147,17 @@ trait Run {
 impl Run for ASTTree {
     fn execute(&self, context: &mut Context) -> Object {
         match self {
-            ASTTree::Number(num) => {
-                return Object::Float(*num);
-            }
+            ASTTree::Number(num) => Object::Float(*num),
             ASTTree::BinaryOp(op, lhs, rhs) => {
                 match op.as_str() {
-                    "+" => {
-                        return lhs.execute(context).add(&rhs.execute(context))
-                    }
+                    "+" => lhs.execute(context).add(&rhs.execute(context)),
                     "-" => {
-                        return lhs
-                            .execute(context)
-                            .add(&rhs.execute(context).neg())
+                        lhs.execute(context).add(&rhs.execute(context).neg())
                     }
-                    "*" => {
-                        return lhs.execute(context).mult(&rhs.execute(context))
-                    }
-                    "/" => {
-                        return lhs.execute(context).div(&rhs.execute(context))
-                    }
-                    "%" => {
-                        return lhs.execute(context).modu(&rhs.execute(context))
-                    }
-                    "**" => {
-                        return lhs.execute(context).pow(&rhs.execute(context))
-                    }
+                    "*" => lhs.execute(context).mult(&rhs.execute(context)),
+                    "/" => lhs.execute(context).div(&rhs.execute(context)),
+                    "%" => lhs.execute(context).modu(&rhs.execute(context)),
+                    "**" => lhs.execute(context).pow(&rhs.execute(context)),
                     "=" => {
                         let name;
                         // println!("This");
@@ -188,21 +174,17 @@ impl Run for ASTTree {
                         );
                         // dbg!(name, &context.variables);
                         // println!("And This");
-                        return Object::Variable(
+                        Object::Variable(
                             name.clone(),
                             Box::new(context.clone()),
-                        );
+                        )
                     }
                     _ => todo!(),
                 }
             }
             ASTTree::UnaryOp(op, exp) => match op.as_str() {
-                "+" => {
-                    return exp.execute(context);
-                }
-                "-" => {
-                    return exp.execute(context).neg();
-                }
+                "+" => exp.execute(context),
+                "-" => exp.execute(context).neg(),
                 default => {
                     todo!("No implementation for operator `{}`.", default)
                 }
@@ -211,13 +193,9 @@ impl Run for ASTTree {
                 // dbg!(name, VARIABLES.lock().unwrap());
                 return context.variables.get(name.as_str()).unwrap().clone();
             }
-            ASTTree::String(string) => return Object::String(string.clone()),
+            ASTTree::String(string) => Object::String(string.clone()),
             ASTTree::Function(name, variables, code) => {
-                return Object::Function(
-                    name.clone(),
-                    variables.clone(),
-                    code.clone(),
-                );
+                Object::Function(name.clone(), variables.clone(), code.clone())
             }
             default => todo!("No implementation for {:?}", default),
         }
