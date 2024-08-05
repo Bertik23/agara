@@ -87,7 +87,7 @@ fn parse_bin_op_rhs(
 fn parse_paren(tokens: &mut Vec<Token>) -> ASTTree {
     tokens.pop();
     let lhs = parse_expression(tokens);
-    if tokens.pop().unwrap() != Token::RParen(0) {
+    if !matches!(tokens.pop().unwrap(), Token::RParen(_)) {
         panic!("Expected ')'");
     }
 

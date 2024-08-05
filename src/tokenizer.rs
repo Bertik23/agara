@@ -38,24 +38,6 @@ struct Tokenizer<'a> {
     start_pos: usize,
 }
 
-impl PartialEq for Token {
-    fn ne(&self, other: &Self) -> bool {
-        if mem::discriminant(self) == mem::discriminant(other) {
-            match (self, other) {
-                (Ident(name, _), Ident(oname, _)) => name == oname,
-                (Operator(name, _), Operator(oname, _)) => name == oname,
-                (Numb(name, _), Numb(oname, _)) => name == oname,
-                _ => false,
-            }
-        } else {
-            false
-        }
-    }
-    fn eq(&self, other: &Self) -> bool {
-        !self.ne(other)
-    }
-}
-
 impl<'a> Tokenizer<'a> {
     fn new(input: &str) -> Tokenizer {
         Tokenizer {
