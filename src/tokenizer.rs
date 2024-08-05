@@ -126,8 +126,7 @@ impl<'a> Tokenizer<'a> {
                         return t;
                     }
                     '"' => {
-                        let c = self.consume_char();
-                        self.curent.push(c);
+                        self.consume_char();
                         self.state = State::String;
                     }
                     _ => todo!(),
@@ -199,6 +198,7 @@ impl<'a> Tokenizer<'a> {
                             Token::String(self.curent.clone(), self.start_pos);
                         self.consume_char();
                         self.start_pos = self.position;
+                        self.curent.clear();
                         return t;
                     }
                     _ => {
