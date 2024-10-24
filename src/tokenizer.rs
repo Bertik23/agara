@@ -1,9 +1,7 @@
 extern crate regex_macro;
 
+use std::char;
 use std::iter::Peekable;
-use std::{char, mem};
-
-use self::Token::{Ident, Numb, Operator};
 
 #[derive(Debug)]
 pub enum Token {
@@ -66,7 +64,7 @@ impl<'a> Tokenizer<'a> {
                         self.consume_char();
                         self.start_pos = self.position;
                     }
-                    op if ['+', '-', '%', '/', '='].contains(op) => {
+                    op if ['+', '-', '%', '/', '=', '*'].contains(op) => {
                         let t = Token::Operator(op.to_string(), self.start_pos);
                         self.consume_char();
                         self.start_pos = self.position;
@@ -111,7 +109,10 @@ impl<'a> Tokenizer<'a> {
                         self.consume_char();
                         self.state = State::String;
                     }
-                    _ => todo!(),
+                    c => todo!(
+                        "Tokens starting with '{}' are not implemented.",
+                        c
+                    ),
                 },
                 State::NumberWhole => match c {
                     '0'..='9' => {
