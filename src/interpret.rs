@@ -1,4 +1,4 @@
-use crate::parser::ASTTree;
+use crate::parser::AST;
 
 use std::{collections::HashMap, fmt, mem};
 
@@ -12,7 +12,7 @@ pub enum Object {
     Float(f64),
     String(String),
     Variable(String, Box<Context>),
-    Function(String, Vec<ASTTree>, Vec<ASTTree>),
+    Function(String, Vec<AST>, Vec<AST>),
 }
 
 impl fmt::Display for Object {
@@ -144,11 +144,11 @@ trait Run {
     fn execute(&self, context: &mut Context) -> Object;
 }
 
-impl Run for ASTTree {
+impl Run for AST {
     fn execute(&self, context: &mut Context) -> Object {
         match self {
-            ASTTree::Number(num) => Object::Float(*num),
-            ASTTree::BinaryOp(op, lhs, rhs) => {
+            AST::Number(num) => Object::Float(*num),
+            AST::BinaryOp(op, lhs, rhs) => {
                 match op.as_str() {
                     "+" => lhs.execute(context).add(&rhs.execute(context)),
                     "-" => {
@@ -164,7 +164,7 @@ impl Run for ASTTree {
                         let mut cntx = context.clone();
                         context.variables.insert(
                             match &**lhs {
-                                ASTTree::Variable(s) => {
+                                AST::Variable(s) => {
                                     name = s;
                                     s.clone()
                                 }
@@ -182,19 +182,19 @@ impl Run for ASTTree {
                     _ => todo!(),
                 }
             }
-            ASTTree::UnaryOp(op, exp) => match op.as_str() {
+            AST::UnaryOp(op, exp) => match op.as_str() {
                 "+" => exp.execute(context),
                 "-" => exp.execute(context).neg(),
                 default => {
                     todo!("No implementation for operator `{}`.", default)
                 }
             },
-            ASTTree::Variable(name) => {
+            AST::Variable(name) => {
                 // dbg!(name, VARIABLES.lock().unwrap());
                 return context.variables.get(name.as_str()).unwrap().clone();
             }
-            ASTTree::String(string) => Object::String(string.clone()),
-            ASTTree::Function(name, variables, code) => {
+            AST::String(string) => Object::String(string.clone()),
+            AST::Function(name, variables, code) => {
                 Object::Function(name.clone(), variables.clone(), code.clone())
             }
             default => todo!("No implementation for {:?}", default),
@@ -202,7 +202,7 @@ impl Run for ASTTree {
     }
 }
 
-pub fn run(ast: Vec<ASTTree>, context: &mut Context) {
+pub fn run(ast: Vec<AST>, context: &mut Context) {
     for (l, a) in ast.iter().enumerate() {
         // println!("Something");
         //let mut cntx = context.clone();

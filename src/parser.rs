@@ -21,18 +21,18 @@ lazy_static! {
 }
 
 #[derive(Debug, Clone)]
-pub enum ASTTree {
+pub enum AST {
     Number(f64),
     Variable(String),
-    UnaryOp(String, Box<ASTTree>),
-    BinaryOp(String, Box<ASTTree>, Box<ASTTree>),
-    Call(String, Vec<ASTTree>),
-    Function(String, Vec<ASTTree>, Vec<ASTTree>),
+    UnaryOp(String, Box<AST>),
+    BinaryOp(String, Box<AST>, Box<AST>),
+    Call(String, Vec<AST>),
+    Function(String, Vec<AST>, Vec<AST>),
     String(String),
 }
 
-fn parse_number(tokens: &mut Vec<Token>) -> ASTTree {
-    ASTTree::Number(if let Token::Numb(n, _) = tokens.pop().unwrap() {
+fn parse_number(tokens: &mut Vec<Token>) -> AST {
+    AST::Number(if let Token::Numb(n, _) = tokens.pop().unwrap() {
         n
     } else {
         panic!("WTF")
@@ -41,9 +41,9 @@ fn parse_number(tokens: &mut Vec<Token>) -> ASTTree {
 
 fn parse_bin_op_rhs(
     tokens: &mut Vec<Token>,
-    lhs_: ASTTree,
+    lhs_: AST,
     min_token_precedense: i32,
-) -> ASTTree {
+) -> AST {
     let mut lhs = lhs_.clone();
     loop {
         let tok_precedense;
@@ -72,7 +72,7 @@ fn parse_bin_op_rhs(
         if tok_precedense < next_tok_precedense {
             rhs = parse_bin_op_rhs(tokens, rhs, tok_precedense + 1);
         }
-        lhs = ASTTree::BinaryOp(
+        lhs = AST::BinaryOp(
             if let Token::Operator(op, _) = operator {
                 op
             } else {
@@ -84,7 +84,7 @@ fn parse_bin_op_rhs(
     }
 }
 
-fn parse_paren(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_paren(tokens: &mut Vec<Token>) -> AST {
     tokens.pop();
     let lhs = parse_expression(tokens);
     if !matches!(tokens.pop().unwrap(), Token::RParen(_)) {
@@ -94,26 +94,26 @@ fn parse_paren(tokens: &mut Vec<Token>) -> ASTTree {
     lhs
 }
 
-fn parse_unary(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_unary(tokens: &mut Vec<Token>) -> AST {
     let op = if let Token::Operator(op, _) = tokens.pop().unwrap() {
         op
     } else {
         panic!("Imposible")
     };
-    ASTTree::UnaryOp(op, Box::new(parse_primary(tokens)))
+    AST::UnaryOp(op, Box::new(parse_primary(tokens)))
 }
 
-fn parse_init(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_init(tokens: &mut Vec<Token>) -> AST {
     let lhs = match tokens.pop().unwrap() {
-        Token::Ident(id, _) => ASTTree::Variable(id),
+        Token::Ident(id, _) => AST::Variable(id),
         _ => panic!("Expected identifier."),
     };
 
     parse_bin_op_rhs(tokens, lhs, 0)
 }
 
-fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
-    let mut params: Vec<ASTTree> = vec![];
+fn parse_function_def(tokens: &mut Vec<Token>) -> AST {
+    let mut params: Vec<AST> = vec![];
     let Token::Ident(name, _) = tokens.pop().unwrap() else {
         panic!("Expected function name")
     };
@@ -122,7 +122,7 @@ fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
         panic!("Expected `(`")
     }
     while let Token::Ident(name, _) = tokens.pop().unwrap() {
-        params.push(ASTTree::Variable(name))
+        params.push(AST::Variable(name))
     }
 
     if let Token::StartBlock(_) = tokens.pop().unwrap() {
@@ -132,10 +132,10 @@ fn parse_function_def(tokens: &mut Vec<Token>) -> ASTTree {
     dbg!(&tokens);
     let next = parse(tokens);
     dbg!(&next);
-    ASTTree::Function(name, params, next)
+    AST::Function(name, params, next)
 }
 
-fn parse_call(tokens: &mut Vec<Token>) -> Vec<ASTTree> {
+fn parse_call(tokens: &mut Vec<Token>) -> Vec<AST> {
     let mut params = vec![];
     tokens.pop();
     while matches!(tokens.last().unwrap(), Token::RParen(_)) {
@@ -145,7 +145,7 @@ fn parse_call(tokens: &mut Vec<Token>) -> Vec<ASTTree> {
     params
 }
 
-fn parse_ident(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_ident(tokens: &mut Vec<Token>) -> AST {
     match tokens.pop().unwrap() {
         Token::Ident(id, _) => {
             match id.as_str() {
@@ -153,9 +153,9 @@ fn parse_ident(tokens: &mut Vec<Token>) -> ASTTree {
                 "fun" => parse_function_def(tokens),
                 _ => {
                     if let Token::LParen(_) = tokens.last().unwrap() {
-                        return ASTTree::Call(id, parse_call(tokens));
+                        return AST::Call(id, parse_call(tokens));
                     }
-                    ASTTree::Variable(id)
+                    AST::Variable(id)
                 } // _ => panic!("Unknown indentifier `{}`", id)
             }
         }
@@ -163,14 +163,14 @@ fn parse_ident(tokens: &mut Vec<Token>) -> ASTTree {
     }
 }
 
-fn parse_string(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_string(tokens: &mut Vec<Token>) -> AST {
     match tokens.pop().unwrap() {
-        Token::String(string, _) => ASTTree::String(string),
+        Token::String(string, _) => AST::String(string),
         _ => panic!("Cant happen."),
     }
 }
 
-fn parse_primary(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_primary(tokens: &mut Vec<Token>) -> AST {
     let lhs;
     match tokens.last().unwrap() {
         Token::Numb(_, _) => {
@@ -192,7 +192,7 @@ fn parse_primary(tokens: &mut Vec<Token>) -> ASTTree {
             panic!("Unknown token.");
         }
         Token::EOF(_) => {
-            lhs = ASTTree::Number(0.0);
+            lhs = AST::Number(0.0);
             // tokens.pop();
             // lhs = parse_primary(tokens);
         }
@@ -206,14 +206,14 @@ fn parse_primary(tokens: &mut Vec<Token>) -> ASTTree {
     lhs
 }
 
-fn parse_expression(tokens: &mut Vec<Token>) -> ASTTree {
+fn parse_expression(tokens: &mut Vec<Token>) -> AST {
     let lhs = parse_primary(tokens);
 
     parse_bin_op_rhs(tokens, lhs, 0)
 }
 
-pub fn parse(tokens: &mut Vec<Token>) -> Vec<ASTTree> {
-    let mut ast: Vec<ASTTree> = vec![];
+pub fn parse(tokens: &mut Vec<Token>) -> Vec<AST> {
+    let mut ast: Vec<AST> = vec![];
     // tokens.reverse();
     loop {
         match tokens.last().unwrap() {
